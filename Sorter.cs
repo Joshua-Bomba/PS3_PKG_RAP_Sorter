@@ -287,9 +287,9 @@ namespace PS3_PKG_RAP_Sorter
 
         public static void Main(string[] args)
         {
-            //SortAndCreatePkgs();
+            SortAndCreatePkgs();
 
-            FormatPkgName();
+            //FormatPkgName();
 
 
         }
