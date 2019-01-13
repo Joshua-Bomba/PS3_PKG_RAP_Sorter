@@ -314,7 +314,8 @@ namespace PS3_PKG_RAP_Sorter
             string[] pkgs = Directory.GetFiles(CopyFolder, "*.pkg");
             if (pkgs.Length == 1&& !Sorter.DRY_RUN)
             {
-                File.Copy(pkgs.First(),Sorter.OUTPUT_LOCATION + "\\");
+                string path = Sorter.OUTPUT_LOCATION + "\\" + Path.GetFileName(pkgs.First());
+                File.Move(pkgs.First(),path);
             }
         }
     }
@@ -322,7 +323,7 @@ namespace PS3_PKG_RAP_Sorter
 
     public class Sorter
     {
-        public static bool DRY_RUN = true;
+        public static bool DRY_RUN = false;
 
         public const string INPUT_LOCATION = @"D:\uncritical\PS3_CONSOLE\games";
         public const string OUTPUT_LOCATION = @"D:\uncritical\PS3_CONSOLE\han_install_packages\games";
