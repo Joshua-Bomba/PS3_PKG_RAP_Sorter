@@ -8,6 +8,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Web.Security;
+using System.Web.Services.Discovery;
 
 namespace PS3_PKG_RAP_Sorter
 {
@@ -16,11 +18,13 @@ namespace PS3_PKG_RAP_Sorter
     {
         protected int id_;
         protected Dictionary<int, List<Game>> dictionary_;
+        protected int cutOffIndex_;
         private string location_;
         public Game(string location, ref Dictionary<int, List<Game>> dic)
         {
             this.id_ = -1;
             this.location_ = location;
+            this.cutOffIndex_ = -1;
             dictionary_ = dic;
         }
 
@@ -38,6 +42,8 @@ namespace PS3_PKG_RAP_Sorter
 
 
         public string Name => Path.GetFileName(Location);
+
+        public string CopyFolder { get; set; }
 
         public abstract void FindId();
         public abstract void CopyTo(string path);
@@ -70,6 +76,7 @@ namespace PS3_PKG_RAP_Sorter
                 {
                     if (numberRead)
                     {
+                        cutOffIndex_ = i;
                         break;
                     }
                 }
@@ -82,22 +89,36 @@ namespace PS3_PKG_RAP_Sorter
 
         public override void CopyTo(string path)
         {
-           t = Task.Run(() => { File.Copy(Location, path + "\\" + Name); });
+           t = Task.Run(() =>
+           {
+               if(!File.Exists(path))
+                File.Copy(Location, path);
+           });
         }
 
         public override void WaitForCopy()
         {
-            if (t != null)
-                t.Wait();
+            t?.Wait();
         }
+    }
+
+    public enum GameType
+    {
+        None,
+        Game,
+        Patch,
     }
 
     public class GameFolder : Game
     {
-        private Process proc;
+        private Process copyProc;
+        private Process pkgProc;
+        private GameType gt;
         public GameFolder(string location,ref Dictionary<int, List<Game>> dic) : base(location, ref dic)
         {
-
+            copyProc = null;
+            pkgProc = null;
+            gt = GameType.None;
         }
 
         public override void FindId()
@@ -117,6 +138,7 @@ namespace PS3_PKG_RAP_Sorter
                 {
                     if (numberRead)
                     {
+                        cutOffIndex_ = i;
                         break;
                     }
                 }
@@ -129,30 +151,147 @@ namespace PS3_PKG_RAP_Sorter
 
         public override void CopyTo(string path)
         {
-            proc = new Process();
-            proc.StartInfo.UseShellExecute = true;
-            proc.StartInfo.FileName = Path.Combine(Environment.SystemDirectory, "xcopy.exe");
-            proc.StartInfo.Arguments = $"\"{Location}\" \"{path + "\\"+ Name}\" /E /I /Y";
-            proc.Start();
-            
+            CopyFolder = path;
+            Directory.CreateDirectory(CopyFolder);
+
+            if(!File.Exists(CopyFolder + '\\' + Sorter.BACKUP_PKG_MAKER_DO))
+                File.Copy(Sorter.BACKUP_PKG_MAKER + '\\' + Sorter.BACKUP_PKG_MAKER_DO, CopyFolder + '\\' + Sorter.BACKUP_PKG_MAKER_DO);
+            if (!File.Exists(CopyFolder + '\\' + Sorter.BACKUP_PKG_MAKER_PKG1))
+                File.Copy(Sorter.BACKUP_PKG_MAKER + '\\' + Sorter.BACKUP_PKG_MAKER_PKG1, CopyFolder + '\\' + Sorter.BACKUP_PKG_MAKER_PKG1);
+            if (!File.Exists(CopyFolder + '\\' + Sorter.BACKUP_PKG_MAKER_PKG2))
+                File.Copy(Sorter.BACKUP_PKG_MAKER + '\\' + Sorter.BACKUP_PKG_MAKER_PKG2, CopyFolder + '\\' + Sorter.BACKUP_PKG_MAKER_PKG2);
+
+            copyProc = new Process();
+            copyProc.StartInfo.UseShellExecute = true;
+            copyProc.StartInfo.FileName = Path.Combine(Environment.SystemDirectory, "xcopy.exe");
+            copyProc.StartInfo.Arguments = $"\"{Location}\" \"{CopyFolder + "\\" + Name}\" /E /I /Y";
+            copyProc.Start();
+
         }
 
         public override void WaitForCopy()
         {
-            if (proc != null)
-                proc.WaitForExit();
+            copyProc?.WaitForExit();
         }
 
-        public void EnsureFolderStructureIsCorrect(ref int containsPatch,ref int containsGame)
+        public void WaitForPkgGen()
         {
+            pkgProc?.WaitForExit();
+        }
+
+        public void EnsureFolderStructureIsCorrect()
+        {
+            string location = "";
             if (Regex.Match(Name.ToUpper(), "NP").Success)
             {
-                containsGame++;
+                location = CopyFolder + '\\' + "BLUS" + id_;
+                gt = GameType.Game;
             }
             else if (Regex.Match(Name.ToUpper(), "B[L|C]").Success)
             {
-                containsPatch++;
+                location = CopyFolder + '\\' + "NPUB" + id_;
+                gt = GameType.Patch;
             }
+
+            if (!string.IsNullOrWhiteSpace(location))
+            {
+                if(cutOffIndex_ != -1)
+                    location += Name.Substring(cutOffIndex_);
+                Directory.CreateDirectory(location);
+            }
+        }
+
+        public void DeletePkgMaker()
+        {
+            string dobat = CopyFolder +'\\' + Sorter.BACKUP_PKG_MAKER_DO;
+            if (File.Exists(dobat))
+                File.Delete(dobat);
+            string bkpkg1 = CopyFolder + '\\' + Sorter.BACKUP_PKG_MAKER_PKG1;
+            if (File.Exists(bkpkg1))
+                File.Delete(bkpkg1);
+            string bkpkg2 = CopyFolder + '\\' + Sorter.BACKUP_PKG_MAKER_PKG2;
+            if (File.Exists(bkpkg2))
+                File.Delete(bkpkg2);
+        }
+
+        public void CreatePackages()
+        {
+            pkgProc = new Process();
+            pkgProc.StartInfo.WorkingDirectory = CopyFolder;
+            pkgProc.StartInfo.UseShellExecute = true;
+            pkgProc.StartInfo.FileName = "do.bat";
+            pkgProc.StartInfo.Arguments = "< nul";
+
+            pkgProc.Start();
+        }
+
+        public void FormatPackages(IList<GameRap> raps)
+        {
+            string[] pkgs = Directory.GetFiles(CopyFolder, "*.pkg");
+
+            if (pkgs.Length == 2)
+            {
+                string pkgFile = "";
+                switch (gt)
+                {
+                    case GameType.Game :
+                        if(Directory.Exists(CopyFolder + '\\' + "BLUS" + id_))
+                            Directory.Delete(CopyFolder + '\\' + "BLUS" + id_);
+                        pkgFile = pkgs.FirstOrDefault(x => x.Contains("PATCH"));
+                        if(pkgFile != null&&File.Exists(pkgFile))
+                            File.Delete(pkgFile);
+                        pkgFile = pkgs.FirstOrDefault(x => x.Contains("GAME"));
+                        GameRap rap = null;
+                        if (raps.Count > 1)
+                        {
+                            while (rap == null)
+                            {
+                                Console.WriteLine("Please Select Correct rap");
+                                for (int i = 0; i < raps.Count; i++)
+                                {
+                                    Console.WriteLine(i + ":" + rap.Name);
+                                }
+
+                                if(!int.TryParse(Console.ReadLine(), out int result))
+                                    continue;
+
+                                if (result > 0 && result < raps.Count)
+                                {
+                                    rap = raps[result];
+                                }
+
+                            }
+
+                        }
+                        else if(raps.Count == 1)
+                        {
+                            rap = raps.First();
+                            
+                        }
+
+                        if (rap != null&&pkgFile != null)
+                        {
+                            File.Move(pkgFile,CopyFolder + "\\" + rap.Name + ".pkg");
+                        }
+
+                        break;
+                    case GameType.Patch:
+                        if(Directory.Exists(CopyFolder + '\\' + "NPUB" + id_))
+                            Directory.Delete(CopyFolder + '\\' + "NPUB" + id_);
+                        pkgFile = pkgs.FirstOrDefault(x => x.Contains("GAME"));
+                        if (pkgFile != null && File.Exists(pkgFile))
+                            File.Delete(pkgFile);
+                        break;
+                    case GameType.None:
+                        break;
+                }
+            }
+            else
+            {
+                Console.WriteLine("There was an issue generating pkgs for " +CopyFolder);
+            }
+
+            
         }
     }
 
@@ -188,14 +327,7 @@ namespace PS3_PKG_RAP_Sorter
                 DirectoryInfo di = Directory.CreateDirectory(OUTPUT_LOCATION + "\\" + v.Key);
                 foreach (Game g in v.Value)
                 {
-                    g.CopyTo(di.FullName);
-                }
-
-                if (v.Value.Count(x => x is GameFolder) > 0)
-                {
-                    File.Copy(BACKUP_PKG_MAKER + '\\' + BACKUP_PKG_MAKER_DO, di.FullName + '\\' + BACKUP_PKG_MAKER_DO);
-                    File.Copy(BACKUP_PKG_MAKER + '\\' + BACKUP_PKG_MAKER_PKG1, di.FullName + '\\' + BACKUP_PKG_MAKER_PKG1);
-                    File.Copy(BACKUP_PKG_MAKER + '\\' + BACKUP_PKG_MAKER_PKG2, di.FullName + '\\' + BACKUP_PKG_MAKER_PKG2);
+                    g.CopyTo(di.FullName + '\\' + g.Name);
                 }
             }
 
@@ -206,70 +338,55 @@ namespace PS3_PKG_RAP_Sorter
             }
 
 
-            LinkedList<Process> processes = new LinkedList<Process>();
+            foreach (KeyValuePair<int, List<Game>> v in dic)
+            {
+                foreach (Game g in v.Value)
+                {
+                    if (g is GameFolder gf)
+                    {
+                        gf.EnsureFolderStructureIsCorrect();
+                        gf.CreatePackages();
+
+                    }
+                }
+            }
 
             foreach (KeyValuePair<int, List<Game>> v in dic)
             {
-                int containsPatch = 0;
-                int containsGame = 0;
                 foreach (Game g in v.Value)
                 {
                     GameFolder gf = g as GameFolder;
-                    if (gf != null)
+                    gf?.WaitForPkgGen();
+                    gf?.DeletePkgMaker();
+                }
+            }
+
+            foreach (KeyValuePair<int, List<Game>> v in dic)
+            {
+
+                List<GameRap> raps = new List<GameRap>();
+                LinkedList<GameFolder> games = new LinkedList<GameFolder>();
+                foreach (Game g in v.Value)
+                {
+                    if (g is GameFolder gf)
                     {
-                        gf.EnsureFolderStructureIsCorrect(ref containsPatch, ref containsGame);
+                        games.AddLast(gf);
+                    }
+                    else if (g is GameRap gr)
+                    {
+                        raps.Add(gr);
                     }
                 }
 
-                if (containsPatch == 0)
+                foreach (GameFolder gf in games)
                 {
-                    Directory.CreateDirectory(OUTPUT_LOCATION + '\\' + v.Key + '\\' + "BLUS" + v.Key);
-                    containsPatch = 1;
-                }
-                else if (containsGame == 0)
-                {
-                    Directory.CreateDirectory(OUTPUT_LOCATION + '\\' + v.Key + '\\' + "NPUB" + v.Key);
-                    containsGame = 1;
-                }
-
-                if (containsGame == 1 && containsPatch == 1)
-                {
-                    Process proc = new Process();
-                    proc.StartInfo.WorkingDirectory = OUTPUT_LOCATION + '\\' + v.Key + '\\';
-                    proc.StartInfo.UseShellExecute = true;
-                    proc.StartInfo.FileName = "do.bat";
-                    proc.StartInfo.Arguments = "< nul";
-
-                    proc.Start();
-
-                    processes.AddLast(proc);
-                }
-                else
-                {
-                    Console.WriteLine("You will need to manually review " + v.Key);
+                    gf.FormatPackages(raps);
                 }
             }
 
-            foreach (Process process in processes)
+            foreach (KeyValuePair<int, List<Game>> v in dic)
             {
-                process.WaitForExit();
-            }
-
-            Console.WriteLine("Please correct them and click next to continue");
-            Console.ReadLine();
-
-            foreach (KeyValuePair<int, List<Game>> kv in dic)
-            {
-                string dobat = OUTPUT_LOCATION + '\\' + kv.Key + '\\' + BACKUP_PKG_MAKER_DO;
-                if (File.Exists(dobat))
-                    File.Delete(dobat);
-                string bkpkg1 = OUTPUT_LOCATION + '\\' + kv.Key + '\\' + BACKUP_PKG_MAKER_PKG1;
-                if (File.Exists(bkpkg1))
-                    File.Delete(bkpkg1);
-
-                string bkpkg2 = OUTPUT_LOCATION + '\\' + kv.Key + '\\' + BACKUP_PKG_MAKER_PKG2;
-                if (File.Exists(bkpkg2))
-                    File.Delete(bkpkg2);
+                
             }
         }
 
