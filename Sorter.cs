@@ -183,21 +183,21 @@ namespace PS3_PKG_RAP_Sorter
                 g.FindId();
             }
 
-            //foreach (KeyValuePair<int,List<Game>> v in dic)
-            //{
-            //    DirectoryInfo di = Directory.CreateDirectory(OUTPUT_LOCATION + "\\" + v.Key);
-            //    foreach (Game g in v.Value)
-            //    {
-            //        g.CopyTo(di.FullName);
-            //    }
+            foreach (KeyValuePair<int, List<Game>> v in dic)
+            {
+                DirectoryInfo di = Directory.CreateDirectory(OUTPUT_LOCATION + "\\" + v.Key);
+                foreach (Game g in v.Value)
+                {
+                    g.CopyTo(di.FullName);
+                }
 
-            //    if (v.Value.Count(x => x is GameFolder) > 0)
-            //    {
-            //        File.Copy(BACKUP_PKG_MAKER + '\\' + BACKUP_PKG_MAKER_DO, di.FullName + '\\' + BACKUP_PKG_MAKER_DO);
-            //        File.Copy(BACKUP_PKG_MAKER + '\\' + BACKUP_PKG_MAKER_PKG1, di.FullName + '\\' + BACKUP_PKG_MAKER_PKG1);
-            //        File.Copy(BACKUP_PKG_MAKER + '\\' + BACKUP_PKG_MAKER_PKG2, di.FullName + '\\' + BACKUP_PKG_MAKER_PKG2);
-            //    }
-            //}
+                if (v.Value.Count(x => x is GameFolder) > 0)
+                {
+                    File.Copy(BACKUP_PKG_MAKER + '\\' + BACKUP_PKG_MAKER_DO, di.FullName + '\\' + BACKUP_PKG_MAKER_DO);
+                    File.Copy(BACKUP_PKG_MAKER + '\\' + BACKUP_PKG_MAKER_PKG1, di.FullName + '\\' + BACKUP_PKG_MAKER_PKG1);
+                    File.Copy(BACKUP_PKG_MAKER + '\\' + BACKUP_PKG_MAKER_PKG2, di.FullName + '\\' + BACKUP_PKG_MAKER_PKG2);
+                }
+            }
 
 
             foreach (KeyValuePair<int, List<Game>> v in dic)
