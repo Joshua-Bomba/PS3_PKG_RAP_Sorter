@@ -293,6 +293,15 @@ namespace PS3_PKG_RAP_Sorter
 
             
         }
+
+        public void OutputPkg()
+        {
+            string[] pkgs = Directory.GetFiles(CopyFolder, "*.pkg");
+            if (pkgs.Length == 1)
+            {
+                File.Copy(pkgs.First(),Sorter.OUTPUT_LOCATION + "\\");
+            }
+        }
     }
 
 
@@ -381,13 +390,10 @@ namespace PS3_PKG_RAP_Sorter
                 foreach (GameFolder gf in games)
                 {
                     gf.FormatPackages(raps);
+                    gf.OutputPkg();
                 }
             }
 
-            foreach (KeyValuePair<int, List<Game>> v in dic)
-            {
-                
-            }
         }
 
 
