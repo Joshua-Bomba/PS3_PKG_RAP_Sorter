@@ -41,7 +41,7 @@ namespace PS3_PKG_RAP_Sorter
         }
 
 
-        public string Name => Path.GetFileName(Location);
+        public virtual string Name => Path.GetFileName(Location);
 
         public string CopyFolder { get; set; }
 
@@ -59,6 +59,7 @@ namespace PS3_PKG_RAP_Sorter
 
         }
 
+        public override string Name => Path.GetFileNameWithoutExtension(Location);
 
         public override void FindId()
         {    
@@ -89,9 +90,10 @@ namespace PS3_PKG_RAP_Sorter
 
         public override void CopyTo(string path)
         {
+           //extremely unessarly terrible
            t = Task.Run(() =>
            {
-               if(!File.Exists(path))
+               if(!File.Exists(path)&&!Sorter.DRY_RUN)
                 File.Copy(Location, path);
            });
         }
@@ -152,20 +154,25 @@ namespace PS3_PKG_RAP_Sorter
         public override void CopyTo(string path)
         {
             CopyFolder = path;
-            Directory.CreateDirectory(CopyFolder);
+            if(!Sorter.DRY_RUN)
+                Directory.CreateDirectory(CopyFolder);
 
-            if(!File.Exists(CopyFolder + '\\' + Sorter.BACKUP_PKG_MAKER_DO))
+            if(!File.Exists(CopyFolder + '\\' + Sorter.BACKUP_PKG_MAKER_DO)&& !Sorter.DRY_RUN)
                 File.Copy(Sorter.BACKUP_PKG_MAKER + '\\' + Sorter.BACKUP_PKG_MAKER_DO, CopyFolder + '\\' + Sorter.BACKUP_PKG_MAKER_DO);
-            if (!File.Exists(CopyFolder + '\\' + Sorter.BACKUP_PKG_MAKER_PKG1))
+            if (!File.Exists(CopyFolder + '\\' + Sorter.BACKUP_PKG_MAKER_PKG1)&&!Sorter.DRY_RUN)
                 File.Copy(Sorter.BACKUP_PKG_MAKER + '\\' + Sorter.BACKUP_PKG_MAKER_PKG1, CopyFolder + '\\' + Sorter.BACKUP_PKG_MAKER_PKG1);
-            if (!File.Exists(CopyFolder + '\\' + Sorter.BACKUP_PKG_MAKER_PKG2))
+            if (!File.Exists(CopyFolder + '\\' + Sorter.BACKUP_PKG_MAKER_PKG2)&&!Sorter.DRY_RUN)
                 File.Copy(Sorter.BACKUP_PKG_MAKER + '\\' + Sorter.BACKUP_PKG_MAKER_PKG2, CopyFolder + '\\' + Sorter.BACKUP_PKG_MAKER_PKG2);
 
-            copyProc = new Process();
-            copyProc.StartInfo.UseShellExecute = true;
-            copyProc.StartInfo.FileName = Path.Combine(Environment.SystemDirectory, "xcopy.exe");
-            copyProc.StartInfo.Arguments = $"\"{Location}\" \"{CopyFolder + "\\" + Name}\" /E /I /Y";
-            copyProc.Start();
+            if (!Sorter.DRY_RUN)
+            {
+                copyProc = new Process();
+                copyProc.StartInfo.UseShellExecute = true;
+                copyProc.StartInfo.FileName = Path.Combine(Environment.SystemDirectory, "xcopy.exe");
+                copyProc.StartInfo.Arguments = $"\"{Location}\" \"{CopyFolder + "\\" + Name}\" /E /I /Y";
+                copyProc.Start();
+            }
+
 
         }
 
@@ -197,32 +204,36 @@ namespace PS3_PKG_RAP_Sorter
             {
                 if(cutOffIndex_ != -1)
                     location += Name.Substring(cutOffIndex_);
-                Directory.CreateDirectory(location);
+                if(!Sorter.DRY_RUN)
+                    Directory.CreateDirectory(location);
             }
         }
 
         public void DeletePkgMaker()
         {
             string dobat = CopyFolder +'\\' + Sorter.BACKUP_PKG_MAKER_DO;
-            if (File.Exists(dobat))
+            if (File.Exists(dobat)&& !Sorter.DRY_RUN)
                 File.Delete(dobat);
             string bkpkg1 = CopyFolder + '\\' + Sorter.BACKUP_PKG_MAKER_PKG1;
-            if (File.Exists(bkpkg1))
+            if (File.Exists(bkpkg1)&& !Sorter.DRY_RUN)
                 File.Delete(bkpkg1);
             string bkpkg2 = CopyFolder + '\\' + Sorter.BACKUP_PKG_MAKER_PKG2;
-            if (File.Exists(bkpkg2))
+            if (File.Exists(bkpkg2)&& !Sorter.DRY_RUN)
                 File.Delete(bkpkg2);
         }
 
         public void CreatePackages()
         {
-            pkgProc = new Process();
-            pkgProc.StartInfo.WorkingDirectory = CopyFolder;
-            pkgProc.StartInfo.UseShellExecute = true;
-            pkgProc.StartInfo.FileName = "do.bat";
-            pkgProc.StartInfo.Arguments = "< nul";
+            if (!Sorter.DRY_RUN)
+            {
+                pkgProc = new Process();
+                pkgProc.StartInfo.WorkingDirectory = CopyFolder;
+                pkgProc.StartInfo.UseShellExecute = true;
+                pkgProc.StartInfo.FileName = "do.bat";
+                pkgProc.StartInfo.Arguments = "< nul";
 
-            pkgProc.Start();
+                pkgProc.Start();
+            }
         }
 
         public void FormatPackages(IList<GameRap> raps)
@@ -235,10 +246,10 @@ namespace PS3_PKG_RAP_Sorter
                 switch (gt)
                 {
                     case GameType.Game :
-                        if(Directory.Exists(CopyFolder + '\\' + "BLUS" + id_))
+                        if(Directory.Exists(CopyFolder + '\\' + "BLUS" + id_)&& !Sorter.DRY_RUN)
                             Directory.Delete(CopyFolder + '\\' + "BLUS" + id_);
                         pkgFile = pkgs.FirstOrDefault(x => x.Contains("PATCH"));
-                        if(pkgFile != null&&File.Exists(pkgFile))
+                        if(pkgFile != null&&File.Exists(pkgFile)&& !Sorter.DRY_RUN)
                             File.Delete(pkgFile);
                         pkgFile = pkgs.FirstOrDefault(x => x.Contains("GAME"));
                         GameRap rap = null;
@@ -249,13 +260,13 @@ namespace PS3_PKG_RAP_Sorter
                                 Console.WriteLine("Please Select Correct rap");
                                 for (int i = 0; i < raps.Count; i++)
                                 {
-                                    Console.WriteLine(i + ":" + rap.Name);
+                                    Console.WriteLine(i + ":" + raps[i].Name);
                                 }
 
                                 if(!int.TryParse(Console.ReadLine(), out int result))
                                     continue;
 
-                                if (result > 0 && result < raps.Count)
+                                if (result >= 0 && result < raps.Count)
                                 {
                                     rap = raps[result];
                                 }
@@ -269,17 +280,21 @@ namespace PS3_PKG_RAP_Sorter
                             
                         }
 
-                        if (rap != null&&pkgFile != null)
+                        if (rap != null&&pkgFile != null&& !Sorter.DRY_RUN)
                         {
                             File.Move(pkgFile,CopyFolder + "\\" + rap.Name + ".pkg");
+                        }
+                        else if (rap == null)
+                        {
+                            Console.WriteLine("No Rap File Included for " + CopyFolder);
                         }
 
                         break;
                     case GameType.Patch:
-                        if(Directory.Exists(CopyFolder + '\\' + "NPUB" + id_))
+                        if(Directory.Exists(CopyFolder + '\\' + "NPUB" + id_)&& !Sorter.DRY_RUN)
                             Directory.Delete(CopyFolder + '\\' + "NPUB" + id_);
                         pkgFile = pkgs.FirstOrDefault(x => x.Contains("GAME"));
-                        if (pkgFile != null && File.Exists(pkgFile))
+                        if (pkgFile != null && File.Exists(pkgFile)&& !Sorter.DRY_RUN)
                             File.Delete(pkgFile);
                         break;
                     case GameType.None:
@@ -297,7 +312,7 @@ namespace PS3_PKG_RAP_Sorter
         public void OutputPkg()
         {
             string[] pkgs = Directory.GetFiles(CopyFolder, "*.pkg");
-            if (pkgs.Length == 1)
+            if (pkgs.Length == 1&& !Sorter.DRY_RUN)
             {
                 File.Copy(pkgs.First(),Sorter.OUTPUT_LOCATION + "\\");
             }
@@ -307,6 +322,8 @@ namespace PS3_PKG_RAP_Sorter
 
     public class Sorter
     {
+        public static bool DRY_RUN = true;
+
         public const string INPUT_LOCATION = @"D:\uncritical\PS3_CONSOLE\games";
         public const string OUTPUT_LOCATION = @"D:\uncritical\PS3_CONSOLE\han_install_packages\games";
         public const string RAP_LOCATION = @"D:\uncritical\PS3_CONSOLE\han_install_packages\rif converter\created_raps";
@@ -333,7 +350,7 @@ namespace PS3_PKG_RAP_Sorter
 
             foreach (KeyValuePair<int, List<Game>> v in dic)
             {
-                DirectoryInfo di = Directory.CreateDirectory(OUTPUT_LOCATION + "\\" + v.Key);
+                DirectoryInfo di = Sorter.DRY_RUN? new DirectoryInfo(OUTPUT_LOCATION + "\\" + v.Key) : Directory.CreateDirectory(OUTPUT_LOCATION + "\\" + v.Key);
                 foreach (Game g in v.Value)
                 {
                     g.CopyTo(di.FullName + '\\' + g.Name);
