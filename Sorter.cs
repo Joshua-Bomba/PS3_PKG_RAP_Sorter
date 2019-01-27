@@ -257,10 +257,10 @@ namespace PS3_PKG_RAP_Sorter
                         {
                             while (rap == null)
                             {
-                                Console.WriteLine("Please Select Correct rap");
+                                Log.Instance.LogLine("Please Select Correct rap");
                                 for (int i = 0; i < raps.Count; i++)
                                 {
-                                    Console.WriteLine(i + ":" + raps[i].Name);
+                                    Log.Instance.LogLine(i + ":" + raps[i].Name);
                                 }
 
                                 if(!int.TryParse(Console.ReadLine(), out int result))
@@ -286,7 +286,7 @@ namespace PS3_PKG_RAP_Sorter
                         }
                         else if (rap == null)
                         {
-                            Console.WriteLine("No Rap File Included for " + CopyFolder);
+                            Log.Instance.LogLine("No Rap File Included for " + CopyFolder);
                         }
 
                         break;
@@ -303,7 +303,7 @@ namespace PS3_PKG_RAP_Sorter
             }
             else
             {
-                Console.WriteLine("There was an issue generating pkgs for " +CopyFolder);
+                Log.Instance.LogLine("There was an issue generating pkgs for " +CopyFolder);
             }
 
             
@@ -428,7 +428,12 @@ namespace PS3_PKG_RAP_Sorter
 
         public static void Main(string[] args)
         {
-            SortAndCreatePkgs();
+            using(Log l = new Log())
+            {
+                Log.Instance = l;
+                SortAndCreatePkgs();
+            }
+
 
             //FormatPkgName();
 
