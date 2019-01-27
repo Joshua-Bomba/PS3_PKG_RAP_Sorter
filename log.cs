@@ -17,7 +17,7 @@ namespace PS3_PKG_RAP_Sorter
 
         public Log()
         {
-            file = "log-" + DateTime.Now.ToString();
+            file = "log-" + DateTime.Now.ToFileTime() + ".txt";
             fs = new FileStream(file,FileMode.CreateNew);
             o = new StreamWriter(fs);
 
