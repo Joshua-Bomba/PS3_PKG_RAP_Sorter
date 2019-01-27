@@ -145,9 +145,11 @@ namespace PS3_PKG_RAP_Sorter
                     }
                 }
             }
+            if(int.TryParse(sb.ToString(), out id_))
+            {
+                addToDictionary();
+            }
 
-            id_ = int.Parse(sb.ToString());
-            addToDictionary();
 
         }
 
